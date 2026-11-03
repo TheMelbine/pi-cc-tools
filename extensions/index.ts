@@ -3549,6 +3549,16 @@ function patchQueuedMessages(): void {
 	const proto = (InteractiveMode as any)?.prototype;
 	if (!proto || proto[QUEUE_PATCH_FLAG] || typeof proto.updatePendingMessagesDisplay !== "function") return;
 	proto[QUEUE_PATCH_FLAG] = true;
+	// The working line ("✻ Thinking…") starts at column 0, flush with the ❯ of the prompt.
+	const loaderProto = (PiTui as any).Loader?.prototype;
+	if (loaderProto && !loaderProto.__ccFlush) {
+		loaderProto.__ccFlush = true;
+		const loaderRender = loaderProto.render;
+		loaderProto.render = function (this: any, width: number) {
+			if (this.paddingX !== 0) { this.paddingX = 0; this.cachedText = undefined; this.cachedLines = undefined; }
+			return loaderRender.call(this, width);
+		};
+	}
 	// No blank line between the working line and widgets above the editor (the model line).
 	const renderWidgetContainer = proto.renderWidgetContainer;
 	if (typeof renderWidgetContainer === "function") {
