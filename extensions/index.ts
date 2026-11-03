@@ -3429,7 +3429,10 @@ function userMessageBandAnsi(): string {
 }
 
 function markUserPromptLine(line: string, copyMarked = false): string {
-	const mark = `\x1b[1m\x1b[97m${USER_PROMPT_MARK}\x1b[39m\x1b[22m`; // white, flush left, as in Claude Code
+	// As in Claude Code: white in the prompt, gray once sent (past prompts are the copyMarked ones).
+	const mark = copyMarked
+		? `${chromeAnsi(getGlobalPiTheme(), "outline")}${USER_PROMPT_MARK}\x1b[39m`
+		: `\x1b[1m\x1b[97m${USER_PROMPT_MARK}\x1b[39m\x1b[22m`;
 	return line.replace(/^((?:\x1b\[[0-9;]*m)*) {2}/, (_match, esc: string) => (
 		copyMarked ? `${esc}${copySkip(`${mark} `)}` : `${esc}${mark} `
 	));
