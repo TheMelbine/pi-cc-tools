@@ -14,6 +14,7 @@ import {
 	AssistantMessageComponent,
 	CustomEditor,
 	CustomMessageComponent,
+	InteractiveMode,
 	ToolExecutionComponent,
 	UserMessageComponent,
 	keyHint,
@@ -3538,6 +3539,39 @@ function installPromptMarkerEditor(ctx: any): void {
 	try {
 		ui.setEditorComponent(factory);
 	} catch { /* not interactive */ }
+}
+
+// Queued messages (typed while the model works), as in Claude Code: gray "❯ text" rows on the
+// prompt band, and ↑ in an empty prompt pulls them back for editing (see the footer extension).
+const QUEUE_PATCH_FLAG = Symbol.for("pi-claude-style-tools:queued-messages");
+const QUEUE_MODE_KEY = Symbol.for("pi-claude-style-tools:interactive-mode");
+function patchQueuedMessages(): void {
+	const proto = (InteractiveMode as any)?.prototype;
+	if (!proto || proto[QUEUE_PATCH_FLAG] || typeof proto.updatePendingMessagesDisplay !== "function") return;
+	proto[QUEUE_PATCH_FLAG] = true;
+	proto.updatePendingMessagesDisplay = function (this: any) {
+		(globalThis as any)[QUEUE_MODE_KEY] = this;
+		this.pendingMessagesContainer.clear();
+		const { steering, followUp } = this.getAllQueuedMessages();
+		const messages: string[] = [...steering, ...followUp];
+		if (!messages.length) return;
+		const theme = getGlobalPiTheme();
+		this.pendingMessagesContainer.addChild({
+			invalidate() {},
+			render(width: number): string[] {
+				const band = userMessageBandAnsi();
+				const mark = `${chromeAnsi(theme, "outline")}${USER_PROMPT_MARK}\x1b[39m`;
+				const lines: string[] = [""];
+				for (const m of messages) {
+					const first = String(m).split("\n")[0] ?? "";
+					const row = `${mark} ${theme.fg("dim", first)}`;
+					lines.push(band ? withUserBand(row, width, band) : clampLineWidth(row, width));
+				}
+				lines.push(clampLineWidth(`  ${theme.fg("dim", "↑ to edit queued messages")}`, width));
+				return lines;
+			},
+		});
+	};
 }
 
 function patchAssistantMessages(): void {
@@ -8225,6 +8259,7 @@ export default function (pi: ExtensionAPI) {
 	patchCustomMessageRender();
 	patchUserMessageRender();
 	patchAssistantMessages();
+	patchQueuedMessages();
 	patchAssistantFullscreenMouse();
 	patchToolExecutionRenderers();
 	patchBashFileEditGrouping();
