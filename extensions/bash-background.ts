@@ -17,6 +17,8 @@ let unsubKey: (() => void) | undefined;
 let nextId = 1;
 const foreground = new Map<string, () => void>();
 const jobs = new Map<number, Job>();
+// Read by the footer (cc-footer.ts) to count running shells.
+(globalThis as any)[Symbol.for("cc-bash-background.jobs")] = jobs;
 
 function logDir(): string {
 	const dir = join(tmpdir(), "pi-bash-background");
@@ -31,7 +33,7 @@ function textOf(result: Result | undefined): string {
 function refreshStatus(): void {
 	const running = [...jobs.values()].filter((j) => !j.done).length;
 	try {
-		ui?.setStatus?.(STATUS_KEY, running > 0 ? `⏵ ${running} background shell${running === 1 ? "" : "s"} · /bg` : undefined);
+		ui?.setStatus?.(STATUS_KEY, undefined); void running;
 	} catch { /* no ui */ }
 }
 
