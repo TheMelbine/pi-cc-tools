@@ -83,6 +83,7 @@ import {
 	type BashIntentMode,
 } from "./bash-intent";
 import { detectBashFileEdit, type BashFileEdit } from "./bash-file-edit";
+import { bindBashBackgroundUi, killJob, listJobs, runDetachable } from "./bash-background";
 import { getUserSettingsPath } from "./settings-path";
 import {
 	blendForContrast,
@@ -8572,6 +8573,15 @@ export default function (pi: ExtensionAPI) {
 		"thinkingLow", "thinkingMedium", "thinkingHigh", "thinkingXhigh",
 		"syntaxKeyword", "syntaxFunction", "syntaxString", "syntaxType",
 	];
+	pi.registerCommand("bg", {
+		description: "Background shell commands: /bg lists, /bg kill <n> stops one",
+		handler: async (args: string, ctx: any) => {
+			const m = /^\s*kill\s+(?:bg-)?(\d+)/.exec(args ?? "");
+			if (m) { ctx.ui.notify(killJob(Number(m[1])) ? `Stopping bg-${m[1]}` : `No running bg-${m[1]}`, "info"); return; }
+			ctx.ui.notify(listJobs(), "info");
+		},
+	});
+
 	pi.registerCommand("cc-spinner", {
 		description: "Set the spinner verb or status theme color, or preview current values",
 		getArgumentCompletions(prefix) {
@@ -8664,6 +8674,7 @@ export default function (pi: ExtensionAPI) {
 		clearRtkRewriteState();
 		if (!ctx.hasUI) return;
 		intentNoticeUi = ctx.ui;
+		bindBashBackgroundUi(ctx.ui);
 		if (localIntentProblem && !localIntentProblemShown) {
 			localIntentProblemShown = true;
 			notifyIntentProblem(`Bash labels: ${localIntentProblem}, so they are off. /cc-tools intent model|off`);
@@ -8831,7 +8842,15 @@ export default function (pi: ExtensionAPI) {
 			// Local labels are asked for only here, when a command really runs, never on redraws.
 			if (bashIntentMode === "local" && typeof bashParams.command === "string") requestLocalIntent(bashParams.command);
 			const before = fileEdit ? snapshotBashFileEdit(cwd, fileEdit) : undefined;
-			const result = await bashTool.execute(toolCallId, bashParams, signal, onUpdate);
+			const result: any = await runDetachable(
+				toolCallId,
+				typeof bashParams.command === "string" ? bashParams.command : "",
+				signal,
+				onUpdate as any,
+				(sig, upd) => bashTool.execute(toolCallId, bashParams, sig, upd as any) as any,
+				(text) => pi.sendMessage({ customType: "bash-background", content: text, display: true }, { deliverAs: "steer", triggerTurn: true }),
+			);
+			if ((result as any)?.details?.backgroundJob) return result;
 			if (fileEdit && before) {
 				const details = result.details && typeof result.details === "object" ? result.details : {};
 				(result as any).details = { ...details, fileEdits: collectBashFileEdits(cwd, fileEdit, before) };
