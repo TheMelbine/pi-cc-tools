@@ -3417,7 +3417,7 @@ function cleanUserMessageLine(line: string): string {
 // Past prompts: one band in the theme's userMessageBg, with ❯ where tool rows put their ●
 // (column 1) and the text where tool labels start (column 3).
 const USER_PROMPT_MARK = "❯";
-const USER_MESSAGE_PAD = 3;
+const USER_MESSAGE_PAD = 2;
 
 /** Background escape for the prompt band, or "" when the theme has no distinct userMessageBg. */
 function userMessageBandAnsi(): string {
@@ -3429,15 +3429,15 @@ function userMessageBandAnsi(): string {
 }
 
 function markUserPromptLine(line: string, copyMarked = false): string {
-	const mark = `${chromeAnsi(getGlobalPiTheme(), "outline")}${USER_PROMPT_MARK}\x1b[39m`;
-	return line.replace(/^((?:\x1b\[[0-9;]*m)*) {3}/, (_match, esc: string) => (
-		copyMarked ? `${esc}${copySkip(` ${mark} `)}` : `${esc} ${mark} `
+	const mark = `\x1b[1m\x1b[97m${USER_PROMPT_MARK}\x1b[39m\x1b[22m`; // white, flush left, as in Claude Code
+	return line.replace(/^((?:\x1b\[[0-9;]*m)*) {2}/, (_match, esc: string) => (
+		copyMarked ? `${esc}${copySkip(`${mark} `)}` : `${esc}${mark} `
 	));
 }
 
 /** Leave a past prompt's 3-column pad out of fullscreen copies. */
 function copySkipUserPad(line: string): string {
-	return line.replace(/^((?:\x1b\[[0-9;]*m)*) {3}/, (_match, esc: string) => `${esc}${copySkip("   ")}`);
+	return line.replace(/^((?:\x1b\[[0-9;]*m)*) {2}/, (_match, esc: string) => `${esc}${copySkip("  ")}`);
 }
 
 /** Paint a full-width band behind a line, surviving resets inside it. */
