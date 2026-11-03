@@ -8060,6 +8060,11 @@ function renderOpenAiToolResult(name: string, result: any, expanded: boolean, is
 		return makeText(ctx.lastComponent, withBranch(theme.fg(ctx.isError ? "error" : "success", ctx.isError ? "Failed" : "Done"), theme));
 	}
 
+	// Background launches (pi-better-background-tasks): one line, managed from the footer menu.
+	if (!ctx.isError && (name === "bg_task_spawn" || (name === "bg_task" && ctx.args?.action === "spawn"))) {
+		return makeText(ctx.lastComponent, withBranch(theme.fg("dim", "Running in the background (↓ to manage)"), theme, false, false, false));
+	}
+
 	if (!ctx.isError && name === "TaskList") {
 		return renderTaskListResult(lines, expanded, theme, ctx);
 	}
@@ -8914,6 +8919,12 @@ export default function (pi: ExtensionAPI) {
 					setToolStatus(ctx, "success");
 					return body;
 				}
+			}
+			// Sent to the background with ctrl+b (bash-background.ts): say so, as Claude Code does.
+			if ((details as any)?.backgroundJob) {
+				clearBlinkTimer(ctx);
+				setToolStatus(ctx, "success");
+				return makeText(ctx.lastComponent, withBranch(theme.fg("dim", "Running in the background (↓ to manage)"), theme, false, false, false));
 			}
 			if (isPartial) {
 				const preview = collectNonEmptyLines(output, expanded ? undefined : liveToolPreviewLimit());
