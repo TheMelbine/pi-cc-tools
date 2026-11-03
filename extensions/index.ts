@@ -3549,6 +3549,13 @@ function patchQueuedMessages(): void {
 	const proto = (InteractiveMode as any)?.prototype;
 	if (!proto || proto[QUEUE_PATCH_FLAG] || typeof proto.updatePendingMessagesDisplay !== "function") return;
 	proto[QUEUE_PATCH_FLAG] = true;
+	// No blank line between the working line and widgets above the editor (the model line).
+	const renderWidgetContainer = proto.renderWidgetContainer;
+	if (typeof renderWidgetContainer === "function") {
+		proto.renderWidgetContainer = function (this: any, container: any, widgets: any, spacerWhenEmpty: boolean, _leadingSpacer: boolean) {
+			return renderWidgetContainer.call(this, container, widgets, spacerWhenEmpty, false);
+		};
+	}
 	proto.updatePendingMessagesDisplay = function (this: any) {
 		(globalThis as any)[QUEUE_MODE_KEY] = this;
 		this.pendingMessagesContainer.clear();
